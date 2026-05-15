@@ -1,0 +1,84 @@
+# Dependencies - Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment Variables
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Build Output
+dist/
+build/
+temp/
+tmp/
+uploads/
+uploads/*
+
+# Backend Specific
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js
+*.spec.js
+
+# MongoDB
+dump/
+mongodb-data/
+*.bson
+*.json
+
+# Security
+*.pem
+*.key
+*.crt
+
+# Cloudinary Cache
+cloudinary-cache/
+
+# Backup Files
+*.bak
+*.backup
+*.old
+
+# OS Generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.dll
+
+# Application Specific
+storage/
+*.sqlite
+*.sqlite3
+.env.local
