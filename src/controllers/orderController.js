@@ -1,28 +1,33 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { createPaymentIntent } = require('../config/stripe');
 
+// Create payment intent with INR
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { items, total } = req.body;
     
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100),
-      currency: 'usd',
-      metadata: {
-        userId: req.user._id.toString()
-      }
+    // Ensure total is in INR
+    const amountInINR = Math.round(total * 100); // Convert to paise
+    
+    const paymentIntent = await createPaymentIntent(amountInINR / 100, 'inr', {
+      userId: req.user._id.toString(),
+      orderTotal: total
     });
     
     res.status(200).json({
       success: true,
-      clientSecret: paymentIntent.client_secret
+      clientSecret: paymentIntent.client_secret,
+      amount: paymentIntent.amount / 100,
+      currency: 'inr'
     });
   } catch (error) {
+    console.error('Create payment intent error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
+// Create order with INR
 exports.createOrder = async (req, res) => {
   try {
     const { items, total, shippingAddress, paymentIntentId } = req.body;
@@ -30,7 +35,7 @@ exports.createOrder = async (req, res) => {
     // Update inventory
     for (const item of items) {
       await Product.findByIdAndUpdate(item.productId, {
-        $inc: { inventory: -item.quantity }
+        $inc: { inventory: -item.quantity, totalSales: item.quantity }
       });
     }
     
@@ -45,65 +50,17 @@ exports.createOrder = async (req, res) => {
         image: item.image
       })),
       subtotal: items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      tax: total * 0.1,
-      shippingCost: total > 50 ? 0 : 5.99,
+      tax: total * 0.05, // 5% GST for India
+      shippingCost: total > 500 ? 0 : 49, // Free shipping over ₹500
       total,
       paymentIntentId,
       shippingAddress,
       paymentStatus: 'paid',
-      status: 'processing'
+      status: 'processing',
+      currency: 'inr'
     });
     
     res.status(201).json({ success: true, data: order });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.getUserOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ userId: req.user._id })
-      .sort('-createdAt');
-    
-    res.status(200).json({ success: true, data: orders });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.getVendorOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({
-      'items.vendorId': req.vendor._id
-    }).sort('-createdAt');
-    
-    const vendorOrders = orders.map(order => ({
-      ...order.toObject(),
-      items: order.items.filter(item => item.vendorId.toString() === req.vendor._id.toString())
-    }));
-    
-    res.status(200).json({ success: true, data: vendorOrders });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.updateOrderStatus = async (req, res) => {
-  try {
-    const { status } = req.body;
-    const order = await Order.findById(req.params.id);
-    
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-    
-    order.status = status;
-    if (status === 'delivered') {
-      order.deliveredAt = new Date();
-    }
-    
-    await order.save();
-    res.status(200).json({ success: true, data: order });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

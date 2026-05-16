@@ -69,6 +69,7 @@ exports.updateProfile = async (req, res) => {
 };
 
 // Upload shop logo
+// Upload logo - Make sure it returns the URL
 exports.uploadLogo = async (req, res) => {
   try {
     if (!req.file) {
@@ -101,7 +102,7 @@ exports.uploadLogo = async (req, res) => {
   }
 };
 
-// Upload shop banner
+// Upload banner - Make sure it returns the URL
 exports.uploadBanner = async (req, res) => {
   try {
     if (!req.file) {

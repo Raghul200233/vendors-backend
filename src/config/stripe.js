@@ -7,14 +7,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   timeout: 60000,
 });
 
-// Create a payment intent
-const createPaymentIntent = async (amount, currency = 'usd', metadata = {}) => {
+// Create a payment intent (INR Currency)
+const createPaymentIntent = async (amount, currency = 'inr', metadata = {}) => {
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(amount * 100), // Convert to paise (cents for INR)
       currency,
       metadata,
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'upi'], // Enable UPI payments
     });
     return paymentIntent;
   } catch (error) {
@@ -23,13 +23,38 @@ const createPaymentIntent = async (amount, currency = 'usd', metadata = {}) => {
   }
 };
 
-// Confirm payment intent
-const confirmPaymentIntent = async (paymentIntentId) => {
+// Create UPI payment intent specifically
+const createUPIPaymentIntent = async (amount, upiId, metadata = {}) => {
   try {
-    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'inr',
+      metadata,
+      payment_method_types: ['upi'],
+      payment_method_options: {
+        upi: {
+          upi_id: upiId, // For collect payments
+        },
+      },
+    });
     return paymentIntent;
   } catch (error) {
-    console.error('Stripe confirm error:', error);
+    console.error('UPI payment intent error:', error);
+    throw error;
+  }
+};
+
+// Create a customer for recurring payments
+const createCustomer = async (email, name, metadata = {}) => {
+  try {
+    const customer = await stripe.customers.create({
+      email,
+      name,
+      metadata,
+    });
+    return customer;
+  } catch (error) {
+    console.error('Stripe create customer error:', error);
     throw error;
   }
 };
@@ -47,56 +72,6 @@ const refundPayment = async (paymentIntentId, amount = null) => {
     return refund;
   } catch (error) {
     console.error('Stripe refund error:', error);
-    throw error;
-  }
-};
-
-// Create a customer
-const createCustomer = async (email, name, metadata = {}) => {
-  try {
-    const customer = await stripe.customers.create({
-      email,
-      name,
-      metadata,
-    });
-    return customer;
-  } catch (error) {
-    console.error('Stripe create customer error:', error);
-    throw error;
-  }
-};
-
-// Create a connected account for vendors
-const createConnectedAccount = async (email, country = 'US') => {
-  try {
-    const account = await stripe.accounts.create({
-      type: 'express',
-      country,
-      email,
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-    });
-    return account;
-  } catch (error) {
-    console.error('Stripe connected account error:', error);
-    throw error;
-  }
-};
-
-// Create account link for onboarding
-const createAccountLink = async (accountId, refreshUrl, returnUrl) => {
-  try {
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: refreshUrl,
-      return_url: returnUrl,
-      type: 'account_onboarding',
-    });
-    return accountLink;
-  } catch (error) {
-    console.error('Stripe account link error:', error);
     throw error;
   }
 };
@@ -119,10 +94,8 @@ const constructWebhookEvent = (payload, signature, webhookSecret) => {
 module.exports = {
   stripe,
   createPaymentIntent,
-  confirmPaymentIntent,
-  refundPayment,
+  createUPIPaymentIntent,
   createCustomer,
-  createConnectedAccount,
-  createAccountLink,
+  refundPayment,
   constructWebhookEvent
 };
