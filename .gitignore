@@ -52,7 +52,6 @@ coverage/
 dump/
 mongodb-data/
 *.bson
-*.json
 
 # Security
 *.pem
