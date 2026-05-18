@@ -78,12 +78,12 @@ app.use((err, req, res, next) => {
 });
 
 // Connect to MongoDB and start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5004;
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 5004,
 })
 .then(() => {
   console.log('✅ MongoDB Connected');
