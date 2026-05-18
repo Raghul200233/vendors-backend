@@ -7,7 +7,6 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
-const path = require('path');
 require('dotenv').config();
 
 // Import routes
@@ -24,13 +23,13 @@ app.set('trust proxy', 1);
 
 // Security Middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for production if needed
+  contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS configuration for production
+// CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://vendors-frontend.vercel.app',
+  origin: ['http://localhost:3000', 'https://vendors-frontend.vercel.app', 'https://*.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -51,45 +50,86 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// Routes
+// ============ ROUTES ============
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check
+// ============ ROOT ROUTE (Fix for "Cannot GET /") ============
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to Multi-Tenant E-Commerce API',
+    version: '1.0.0',
+    status: 'active',
+    endpoints: {
+      auth: '/api/auth',
+      products: '/api/products',
+      orders: '/api/orders',
+      vendor: '/api/vendor',
+      admin: '/api/admin',
+      health: '/health'
+    },
+    documentation: 'https://github.com/Raghul200233/vendors-backend',
+    timestamp: new Date()
+  });
+});
+
+// ============ HEALTH CHECK ============
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 
-// Error handler
+// ============ 404 Handler ============
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Cannot find ${req.originalUrl} on this server`,
+    availableEndpoints: {
+      root: '/',
+      health: '/health',
+      api: {
+        auth: '/api/auth',
+        products: '/api/products',
+        orders: '/api/orders',
+        vendor: '/api/vendor',
+        admin: '/api/admin'
+      }
+    }
+  });
+});
+
+// ============ Error Handler ============
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error:', err.stack);
   res.status(err.status || 500).json({
     success: false,
-    message: process.env.NODE_ENV === 'production' ? 'Server Error' : err.message
+    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
   });
 });
 
-// Connect to MongoDB and start server
-const PORT = process.env.PORT || 5004;
+// ============ Connect to MongoDB and Start Server ============
+const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5004,
+  serverSelectionTimeoutMS: 5000,
 })
 .then(() => {
   console.log('✅ MongoDB Connected');
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 API: https://vendors-backend.onrender.com/api`);
+    console.log(`📡 API: https://vendors-backend.onrender.com`);
+    console.log(`🔗 Health Check: https://vendors-backend.onrender.com/health`);
   });
 })
 .catch(err => {
