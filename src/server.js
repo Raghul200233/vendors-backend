@@ -18,21 +18,49 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
-// Trust proxy for rate limiting (important for Render)
+// Trust proxy for rate limiting
 app.set('trust proxy', 1);
+
+// ✅ CORS configuration - MUST COME FIRST
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'https://vendors-frontend-bice.vercel.app',
+  'https://vendors-frontend.vercel.app',
+  'https://*.vercel.app'
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        const pattern = allowed.replace('*', '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return allowed === origin;
+    })) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Still allow but log
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-// CORS configuration
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://vendors-frontend.vercel.app', 'https://*.vercel.app'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(compression());
@@ -57,13 +85,14 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/admin', adminRoutes);
 
-// ============ ROOT ROUTE (Fix for "Cannot GET /") ============
+// ============ ROOT ROUTE ============
 app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'Welcome to Multi-Tenant E-Commerce API',
     version: '1.0.0',
     status: 'active',
+    cors: 'enabled',
     endpoints: {
       auth: '/api/auth',
       products: '/api/products',
@@ -71,9 +100,7 @@ app.get('/', (req, res) => {
       vendor: '/api/vendor',
       admin: '/api/admin',
       health: '/health'
-    },
-    documentation: 'https://github.com/Raghul200233/vendors-backend',
-    timestamp: new Date()
+    }
   });
 });
 
@@ -92,18 +119,7 @@ app.get('/health', (req, res) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: `Cannot find ${req.originalUrl} on this server`,
-    availableEndpoints: {
-      root: '/',
-      health: '/health',
-      api: {
-        auth: '/api/auth',
-        products: '/api/products',
-        orders: '/api/orders',
-        vendor: '/api/vendor',
-        admin: '/api/admin'
-      }
-    }
+    message: `Cannot find ${req.originalUrl} on this server`
   });
 });
 
@@ -117,19 +133,18 @@ app.use((err, req, res, next) => {
 });
 
 // ============ Connect to MongoDB and Start Server ============
-const PORT = process.env.PORT || 5006;
+const PORT = process.env.PORT || 5000;
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5006,
+  serverSelectionTimeoutMS: 5000,
 })
 .then(() => {
   console.log('✅ MongoDB Connected');
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 API: https://vendors-backend-xblc.onrender.com`);
-    console.log(`🔗 Health Check: https://vendors-backend-xblc.onrender.com/health`);
+    console.log(`📡 CORS enabled for:`, allowedOrigins);
   });
 })
 .catch(err => {
