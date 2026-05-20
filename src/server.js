@@ -117,19 +117,19 @@ app.use((err, req, res, next) => {
 });
 
 // ============ Connect to MongoDB and Start Server ============
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5006;
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 5006,
 })
 .then(() => {
   console.log('✅ MongoDB Connected');
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 API: https://vendors-backend.onrender.com`);
-    console.log(`🔗 Health Check: https://vendors-backend.onrender.com/health`);
+    console.log(`📡 API: https://vendors-backend-xblc.onrender.com`);
+    console.log(`🔗 Health Check: https://vendors-backend-xblc.onrender.com/health`);
   });
 })
 .catch(err => {
